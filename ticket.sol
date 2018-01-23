@@ -15,12 +15,14 @@ contract TicketGen {
     //Ticket struct. Still need to decide data model / add to it
     struct Ticket {
         address ticketOwner;
+        bool forSale;
+        uint salePrice;
     }
 
     //Mapping ticket Ids to the Ticket struct
     mapping (bytes32 => Ticket) public tickets;
 
-    //Array of ticketIds, that will be used to validate length against ticketSupply
+    //Array of ticketIds
     bytes32[] public ticketIds;
 
 
@@ -40,13 +42,14 @@ contract TicketGen {
         require(msg.value >= ticketPrice );
 
         //pay organizer for ticket
-        organizer.transfer(msg.value);
+        organizer.transfer(ticketPrice);
 
         //Now that all checks are complete, paid, can increase ticketsSold, generate Id, update Id array, update ticket mapping
         ticketsSold++;
         bytes32 _ticketId = keccak256(ticketsSold,VERSION);
         ticketIds.push(_ticketId);
         tickets[_ticketId].ticketOwner = msg.sender;
+        tickets[_ticketId].forSale = false;
 
         return true;
 
@@ -54,8 +57,30 @@ contract TicketGen {
 
     }
 
+ //forSale and salePrice variables are not sticking in storage. Why is this??
 
-    // Add a ticket transfer function
+    function listResale (bytes32 _ticketId, uint _salePrice) external {
+        require(tickets[_ticketId].ticketOwner == msg.sender);
+        Ticket storage myTicket = tickets[_ticketId];
+        myTicket.forSale == true;
+        myTicket.salePrice == _salePrice;
+    }
+
+    function delistResale (bytes32 _ticketId) external {
+        require(tickets[_ticketId].ticketOwner == msg.sender);
+        Ticket storage myTicket = tickets[_ticketId];
+        myTicket.forSale == false;
+    }
+
+    function buyResale (bytes32 _ticketId) external payable {
+        require(msg.value >= tickets[_ticketId].salePrice);
+        Ticket storage myTicket = tickets[_ticketId];
+        address _currentOwner = myTicket.ticketOwner;
+        _currentOwner.transfer(myTicket.salePrice);
+        myTicket.ticketOwner = msg.sender;
+        myTicket.forSale = false;
+
+    }
 
 
     //Add a function which validates the ticket holder for presenting at the door - or do they send a signed message?
@@ -66,5 +91,5 @@ contract TicketGen {
 
     //Add admin functions to manage ticketSupply or tiers of tickets?
 
-    //How to deal with events that have multiple different tiers of tickets? Probably need a function to allow admin to set price and different arrays or tiers
+    //How to deal with events(real life, not solidity) that have multiple different tiers of tickets? Probably need a function to allow admin to set price and different arrays or tiers
 }
